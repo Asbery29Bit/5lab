@@ -6,6 +6,11 @@ from PyQt5.QtCore import Qt, QAbstractTableModel, QSortFilterProxyModel, QObject
 import sqlite3
 import requests
 
+
+# Глобальная переменная для хранения последних загруженных постов
+latest_posts_data = None
+
+
 class Communicator(QObject):
     update_ui_signal = pyqtSignal(bool)
 
@@ -28,6 +33,7 @@ def initialize_posts_database():
     connection.commit()
     connection.close()
 
+
 def retrieve_posts_from_api():
     api_url = 'https://jsonplaceholder.typicode.com/posts'
     response = requests.get(api_url)
@@ -36,6 +42,7 @@ def retrieve_posts_from_api():
     else:
         print("Error fetching data:", response.status_code)
         return []
+
 
 def store_posts_in_database(posts):
     connection = sqlite3.connect('user_posts.db')
@@ -51,6 +58,7 @@ def store_posts_in_database(posts):
     connection.commit()
     connection.close()
 
+
 def fetch_all_posts():
     connection = sqlite3.connect('user_posts.db')
     cursor = connection.cursor()
@@ -58,6 +66,7 @@ def fetch_all_posts():
     all_posts = cursor.fetchall()
     connection.close()
     return all_posts
+
 
 def insert_post(post):
     connection = sqlite3.connect('user_posts.db')
@@ -68,6 +77,7 @@ def insert_post(post):
     ''', (post["user_id"], post["post_title"], post["post_body"]))
     connection.commit()
     connection.close()
+
 
 def delete_post(post_id):
     connection = sqlite3.connect('user_posts.db')
@@ -116,10 +126,8 @@ class MainWindow(QMainWindow):
         self.createWidgets()
         self.show()
 
-       
         communicator.update_ui_signal.connect(self.update_table_view)
 
-       
         self.timer = QTimer()
         self.timer.timeout.connect(self.on_timer_timeout)
         self.timer.start(10000)  # Запускаем таймер каждые 10 секунд
@@ -221,10 +229,14 @@ class MainWindow(QMainWindow):
         threading.Thread(target=self.check_for_updates).start()
 
     def check_for_updates(self):
+        global latest_posts_data
+        
         latest_posts = retrieve_posts_from_api()
-        if latest_posts != posts_data:
+        if latest_posts != latest_posts_data:
             store_posts_in_database(latest_posts)
+            latest_posts_data = latest_posts
             communicator.update_ui_signal.emit(True)
+
 
 class AddPostDialog(QDialog):
     def __init__(self, parent):
@@ -250,6 +262,7 @@ class AddPostDialog(QDialog):
         main_layout.addWidget(button_box)
 
         self.setLayout(main_layout)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
