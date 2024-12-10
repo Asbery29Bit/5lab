@@ -221,11 +221,11 @@ class MainWindow(QMainWindow):
 
     def download_posts(self):
         try:
-            communicator.update_progress_signal.emit(0)  # Начальное значение прогресса
+            communicator.update_progress_signal.emit(0)  
             posts_data = retrieve_posts_from_api()
-            communicator.update_progress_signal.emit(50)  # Прогресс на полпути
+            communicator.update_progress_signal.emit(50)  
             store_posts_in_database(posts_data)
-            communicator.update_progress_signal.emit(100)  # Завершение процесса
+            communicator.update_progress_signal.emit(100)  
             communicator.update_ui_signal.emit(True)
 
             # Сбрасываем прогрессбар через 10 секунд
