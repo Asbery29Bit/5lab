@@ -12,6 +12,7 @@ latest_posts_data = None
 
 
 class Communicator(QObject):
+    update_progress_signal = pyqtSignal(int)  # Новый сигнал для обновления прогресса
     update_ui_signal = pyqtSignal(bool)
 
 communicator = Communicator()
@@ -126,6 +127,7 @@ class MainWindow(QMainWindow):
         self.createWidgets()
         self.show()
 
+        communicator.update_progress_signal.connect(self.progress_update)
         communicator.update_ui_signal.connect(self.update_table_view)
 
         self.timer = QTimer()
@@ -164,6 +166,9 @@ class MainWindow(QMainWindow):
         self.download_button = QPushButton("Download Data")
         self.download_button.clicked.connect(self.on_download_click)
 
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)  # Диапазон от 0 до 100%
+
         main_vbox = QVBoxLayout()
         main_vbox.addWidget(self.search_field)
         main_vbox.addWidget(self.post_table)
@@ -174,6 +179,7 @@ class MainWindow(QMainWindow):
         main_hbox.addWidget(self.delete_button)
         main_hbox.addWidget(self.download_button)
         main_vbox.addLayout(main_hbox)
+        main_vbox.addWidget(self.progress_bar)
 
         self.central_widget.setLayout(main_vbox)
 
@@ -215,9 +221,15 @@ class MainWindow(QMainWindow):
 
     def download_posts(self):
         try:
+            communicator.update_progress_signal.emit(0)  # Начальное значение прогресса
             posts_data = retrieve_posts_from_api()
+            communicator.update_progress_signal.emit(50)  # Прогресс на полпути
             store_posts_in_database(posts_data)
+            communicator.update_progress_signal.emit(100)  # Завершение процесса
             communicator.update_ui_signal.emit(True)
+
+            # Сбрасываем прогрессбар через 10 секунд
+            QTimer.singleShot(10000, self.reset_progress)
         except Exception as e:
             print(f"Error during downloading or storing posts: {e}")
 
@@ -230,12 +242,19 @@ class MainWindow(QMainWindow):
 
     def check_for_updates(self):
         global latest_posts_data
-        
+
         latest_posts = retrieve_posts_from_api()
         if latest_posts != latest_posts_data:
             store_posts_in_database(latest_posts)
             latest_posts_data = latest_posts
             communicator.update_ui_signal.emit(True)
+
+    def progress_update(self, value):
+        self.progress_bar.setValue(value)
+
+    def reset_progress(self):
+        """Сброс прогресса через 10 секунд."""
+        self.progress_bar.setValue(0)
 
 
 class AddPostDialog(QDialog):
